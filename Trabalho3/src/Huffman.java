@@ -1,6 +1,6 @@
 import com.everaldojunior.utils.list.CountByChar;
 import com.everaldojunior.utils.list.LinkedList;
-import com.everaldojunior.utils.list.ListNode;
+import com.everaldojunior.utils.list.Symbol;
 import com.everaldojunior.utils.tree.BinaryTree;
 import com.everaldojunior.utils.tree.TreeNode;
 
@@ -13,11 +13,16 @@ public class Huffman
     //Caminho dos arquivos
     private String inputPath;
     private String outputPath;
+    private String currentSymbol;
+
+    private LinkedList<Symbol> symbolsTable;
 
     public Huffman(String input, String output)
     {
         this.inputPath = input;
         this.outputPath = output;
+        this.currentSymbol = "";
+        this.symbolsTable = new LinkedList<>();
     }
 
     public void Compress()
@@ -30,6 +35,7 @@ public class Huffman
 
         //Quantidade de ocorrência por char
         var countByChar = new LinkedList<TreeNode<CountByChar>>();
+        var fileContent = "";
 
         //Carrega o arquivo a ser comprimido
         var file = new File(inputPath);
@@ -42,6 +48,7 @@ public class Huffman
                 //Checa se já existe o char na lista
                 var found = false;
                 var currentNode = countByChar.GetFirstNode();
+                fileContent += (char)content;
 
                 //Percorre todos os elementos da lista
                 while (currentNode != null)
@@ -104,23 +111,46 @@ public class Huffman
         var binaryTree = new BinaryTree<>(countByChar.GetFirstNode().GetData());
 
         //Percorre a arvore e monta a tabela de simbolos
-        Percorrer(binaryTree.root);
+        GenerateSymbolTable(binaryTree.root);
+
+        //Recodificando usando a tabela de simbolos
     }
 
-    public String currentString = "";
-    public void Percorrer(TreeNode<CountByChar> node)
+    //Gera a tabela de simbolos
+    public void GenerateSymbolTable(TreeNode<CountByChar> node)
     {
         if (node != null)
         {
+            //Se não for soma ele adiciona na tabela
             if(node.GetData().GetCharCode() != -1)
-                System.out.println(currentString + ">> \"" + ((char)node.GetData().GetCharCode()) + "\"");
-            //currentString += "0";
-            Percorrer(node.GetLeftNode());
-            //currentString = currentString.substring(0, currentString.length() - 1);
+            {
+                //Convert o simbolo atual para o bit array
+                var charArray= this.currentSymbol.toCharArray();
+                var bitArray = new int[charArray.length];
 
-            //currentString += "1";
-            //Percorrer(node.GetRightNode());
-            //currentString = currentString.substring(0, currentString.length() - 1);
+                //Converte de char para int
+                for(var i = 0; i < charArray.length; i++)
+                {
+                    if(charArray[i] == '1')
+                        bitArray[i] = 1;
+                    else
+                        bitArray[i] = 0;
+                }
+
+                //Adiciona o simbolo na lista
+                var symbol = new Symbol(node.GetData().GetCharCode(), null);
+                this.symbolsTable.Add(symbol);
+            }
+
+            //Adiciona um 0 e percorre o nó da esquerda
+            this.currentSymbol += "0";
+            GenerateSymbolTable(node.GetLeftNode());
+            this.currentSymbol = this.currentSymbol.substring(0, this.currentSymbol.length() - 1);
+
+            //Adiciona um 1 e percorre o nó da direita
+            this.currentSymbol += "1";
+            GenerateSymbolTable(node.GetRightNode());
+            this.currentSymbol = this.currentSymbol.substring(0, this.currentSymbol.length() - 1);
         }
     }
 }
