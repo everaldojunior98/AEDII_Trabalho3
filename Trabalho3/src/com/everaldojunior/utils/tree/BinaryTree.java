@@ -1,9 +1,9 @@
 package com.everaldojunior.utils.tree;
 
-public class BinaryTree<T>
+public class BinaryTree<T extends Comparable<T>>
 {
     //Nó raiz da arvore
-    private TreeNode<T> root;
+    public TreeNode<T> root;
 
     public BinaryTree(TreeNode<T> root)
     {

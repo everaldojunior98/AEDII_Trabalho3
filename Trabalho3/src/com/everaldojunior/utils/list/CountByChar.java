@@ -1,6 +1,6 @@
 package com.everaldojunior.utils.list;
 
-public class CountByChar
+public class CountByChar implements Comparable<CountByChar>
 {
     //Codigo do char em analise
     private int code;
@@ -29,5 +29,31 @@ public class CountByChar
     public int GetCharCode()
     {
         return this.code;
+    }
+
+    @Override
+    public String toString()
+    {
+        return (code == -1 ? "+" : ("\"" + ((char)code) + "\"")) + " : " + count;
+    }
+
+    @Override
+    public int compareTo(CountByChar obj)
+    {
+        if (this.count > obj.GetCount())
+        {
+            //Se for maior retorna 1
+            return 1;
+        }
+        else if (this.count < obj.GetCount())
+        {
+            //Se for menor retorna -1
+            return -1;
+        }
+        else
+        {
+            //Se for igual retorna 0
+            return 0;
+        }
     }
 }

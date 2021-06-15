@@ -1,7 +1,9 @@
 package com.everaldojunior.utils.list;
 
+import com.everaldojunior.utils.tree.TreeNode;
+
 //Lista encadeada genérica
-public class LinkedList<T>
+public class LinkedList<T extends Comparable<T>>
 {
     private ListNode<T> firstNode;
     private ListNode<T> lastNode;
@@ -74,5 +76,49 @@ public class LinkedList<T>
             lastNode = currentNode;
             currentNode = currentNode.GetNextNode();
         }
+    }
+
+    //Ordena a lista de forma generica
+    public void Sort()
+    {
+        //Faz o sort e atualiza o primeiro nó
+        this.firstNode = Sort(this.firstNode);
+
+        var currentNode = this.firstNode;
+        ListNode<T> lastNode = null;
+
+        //Percorre todos os elementos da lista e preenche o ultimo nó
+        while (currentNode != null)
+        {
+            lastNode = currentNode;
+            currentNode = currentNode.GetNextNode();
+        }
+
+        this.lastNode = lastNode;
+    }
+
+    private ListNode<T> SwapNodes(ListNode<T> node1, ListNode<T> node2)
+    {
+        node1.SetNextNode(node2.GetNextNode());
+        node2.SetNextNode(node1);
+        return node2;
+    }
+
+    private ListNode<T> Sort(ListNode<T> start)
+    {
+        if (start == null)
+            return null;
+        //Manda os valores maiores para baixo
+        if (start.GetNextNode() != null && start.GetData().compareTo(start.GetNextNode().GetData()) > 0)
+            start = SwapNodes(start, start.GetNextNode());
+        start.SetNextNode(Sort(start.GetNextNode()));
+        //Sobe com os valores menores
+        if (start.GetNextNode() != null && start.GetData().compareTo(start.GetNextNode().GetData()) > 0)
+        {
+            start = SwapNodes(start, start.GetNextNode());
+            start.SetNextNode(Sort(start.GetNextNode()));
+        }
+
+        return start;
     }
 }

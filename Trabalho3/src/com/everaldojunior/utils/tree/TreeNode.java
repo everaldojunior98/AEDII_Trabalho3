@@ -1,7 +1,9 @@
 package com.everaldojunior.utils.tree;
 
+import com.everaldojunior.utils.list.CountByChar;
+
 //Um nó genérico para uma arvore binaria
-public class TreeNode<T>
+public class TreeNode<T extends Comparable<T>>  implements Comparable<TreeNode<T>>
 {
     //Valor salvo no nó
     private T data;
@@ -51,5 +53,17 @@ public class TreeNode<T>
     public void SetData(T data)
     {
         this.data = data;
+    }
+
+    @Override
+    public String toString()
+    {
+        return this.data.toString();
+    }
+
+    @Override
+    public int compareTo(TreeNode<T> o)
+    {
+        return this.data.compareTo(o.GetData());
     }
 }

@@ -20,37 +20,6 @@ public class Huffman
         this.outputPath = output;
     }
 
-    //Ordena a lista baseado no número de ocorrências
-    private void OrderList(LinkedList<TreeNode<CountByChar>> list)
-    {
-        boolean swapped;
-        ListNode<TreeNode<CountByChar>> node;
-        ListNode<TreeNode<CountByChar>> lastNode = null;
-
-        //Ordena os valores usando o algoritmo Bubble Sort
-        do
-        {
-            swapped = false;
-            node = list.GetFirstNode();
-
-            while (node.GetNextNode() != lastNode)
-            {
-                if (node.GetData().GetData().GetCount() > node.GetNextNode().GetData().GetData().GetCount())
-                {
-                    //Atualiza os valores do nó
-                    CountByChar temp = node.GetData().GetData();
-                    node.GetData().SetData(node.GetNextNode().GetData().GetData());
-                    node.GetNextNode().GetData().SetData(temp);
-
-                    swapped = true;
-                }
-                node = node.GetNextNode();
-            }
-            lastNode = node;
-        }
-        while (swapped);
-    }
-
     public void Compress()
     {
         //Funcionamento
@@ -105,38 +74,53 @@ public class Huffman
         }
 
         //Ordena a lista
-        OrderList(countByChar);
+        countByChar.Sort();
 
         //Montando a estrutura da arvore binaria
-        var currentNode = countByChar.GetFirstNode();
-        var nextNode = currentNode.GetNextNode();
         //Percorre todos os elementos da lista
-        while (currentNode != null)
+        while (countByChar.GetLength() > 1)
         {
-            //Remove os 2 nós de moenor frequencia
+            var currentNode = countByChar.GetFirstNode();
+            var nextNode = currentNode.GetNextNode();
+
+            //Remove os 2 nós de menor frequencia
             countByChar.Remove(currentNode.GetData());
-            if(nextNode != null)
-                countByChar.Remove(nextNode.GetData());
+            countByChar.Remove(nextNode.GetData());
 
             //Agrupa esses 2 nós em um nó pai
             var newTreeNode = new TreeNode<>(new CountByChar(-1));
-            var count = currentNode.GetData().GetData().GetCount() + (nextNode == null ? 0 : nextNode.GetData().GetData().GetCount());
-            newTreeNode.GetData().SetCount(count);
+            newTreeNode.GetData().SetCount(currentNode.GetData().GetData().GetCount() + nextNode.GetData().GetData().GetCount());
 
             //Verifica a posição para adicionar os nós
             newTreeNode.SetLeftNode(currentNode.GetData());
-            if(nextNode != null)
-                newTreeNode.SetRightNode(nextNode.GetData());
+            newTreeNode.SetRightNode(nextNode.GetData());
 
             //Adiciona o nó pai na lista e reordena a lista
             countByChar.Add(newTreeNode);
-            OrderList(countByChar);
-
-            currentNode = nextNode == null ? null : nextNode.GetNextNode();
-            nextNode = currentNode == null ? null : currentNode.GetNextNode();
+            countByChar.Sort();
         }
 
         //Cria a arvore
         var binaryTree = new BinaryTree<>(countByChar.GetFirstNode().GetData());
+
+        //Percorre a arvore e monta a tabela de simbolos
+        Percorrer(binaryTree.root);
+    }
+
+    public String currentString = "";
+    public void Percorrer(TreeNode<CountByChar> node)
+    {
+        if (node != null)
+        {
+            if(node.GetData().GetCharCode() != -1)
+                System.out.println(currentString + ">> \"" + ((char)node.GetData().GetCharCode()) + "\"");
+            //currentString += "0";
+            Percorrer(node.GetLeftNode());
+            //currentString = currentString.substring(0, currentString.length() - 1);
+
+            //currentString += "1";
+            //Percorrer(node.GetRightNode());
+            //currentString = currentString.substring(0, currentString.length() - 1);
+        }
     }
 }

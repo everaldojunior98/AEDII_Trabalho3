@@ -1,7 +1,7 @@
 package com.everaldojunior.utils.list;
 
 //Um nó genérico
-public class ListNode<T>
+public class ListNode<T extends Comparable<T>>  implements Comparable<ListNode<T>>
 {
     //Valor salvo no nó
     private T data;
@@ -36,5 +36,11 @@ public class ListNode<T>
     public void SetData(T data)
     {
         this.data = data;
+    }
+
+    @Override
+    public int compareTo(ListNode<T> o)
+    {
+        return this.data.compareTo(o.GetData());
     }
 }
