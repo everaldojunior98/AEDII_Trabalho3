@@ -2,10 +2,16 @@ public class Main
 {
     public static void main(String[] args)
     {
-        var inputPath = "src/files/input.txt";
-        var outputPath = "src/files/output.txt";
+        var inputCompressPath = "src/files/inputCompress.txt";
+        var outputCompressPath = "src/files/outputCompress.txt";
 
-        var huffman = new Huffman(inputPath, outputPath);
-        huffman.Compress();
+        var inputDecompressPath = "src/files/inputDecompress.txt";
+        var outputDecompressPath = "src/files/outputDecompress.txt";
+
+        //var huffmanCompress = new Huffman(inputCompressPath, outputCompressPath);
+        //huffmanCompress.Compress();
+
+        var huffmanDecompress = new Huffman("src/files/teste2.txt", "src/files/teste2.txt");
+        huffmanDecompress.Decompress();
     }
 }

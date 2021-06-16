@@ -4,9 +4,7 @@ import com.everaldojunior.utils.list.Symbol;
 import com.everaldojunior.utils.tree.BinaryTree;
 import com.everaldojunior.utils.tree.TreeNode;
 
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
 
 public class Huffman
 {
@@ -21,8 +19,6 @@ public class Huffman
     {
         this.inputPath = input;
         this.outputPath = output;
-        this.currentSymbol = "";
-        this.symbolsTable = new LinkedList<>();
     }
 
     public void Compress()
@@ -32,6 +28,9 @@ public class Huffman
         //2 - Montar a arvore binaria, agrupando os simbolos por sua frequencia
         //3 - Percorrer a arvore para montar o dicionario com o novo codigo de cada simbolo
         //4 - Recodificar os dados usando esse dicionario
+
+        this.currentSymbol = "";
+        this.symbolsTable = new LinkedList<>();
 
         //Quantidade de ocorrência por char
         var countByChar = new LinkedList<TreeNode<CountByChar>>();
@@ -76,7 +75,7 @@ public class Huffman
         }
         catch (IOException e)
         {
-            System.out.println("ERRO: Não foi ler o arquivo no caminho: " + inputPath);
+            System.out.println("ERRO: Não foi possível ler o arquivo no caminho: " + inputPath);
             return;
         }
 
@@ -114,6 +113,87 @@ public class Huffman
         GenerateSymbolTable(binaryTree.root);
 
         //Recodificando usando a tabela de simbolos
+        var fileContentCharArray = fileContent.toCharArray();
+        var fileCompactedBits = new LinkedList<Integer>();
+
+        //Percorre cada char do arquivo e adiciona na lista de simbolos
+        for (var i = 0; i < fileContentCharArray.length; i++)
+        {
+            var currentNode = this.symbolsTable.GetFirstNode();
+            while (currentNode != null)
+            {
+                //Encontra a letra e seu codigo na lista tabela de simbolos
+                if(currentNode.GetData().GetCharCode() == fileContentCharArray[i])
+                {
+                    var code = currentNode.GetData().GetCode();
+                    for (var j = 0; j < code.length; j++)
+                        fileCompactedBits.Add(code[j]);
+                    break;
+                }
+                currentNode = currentNode.GetNextNode();
+            }
+        }
+
+        //Converte os bits de linked list pra array
+        var fileCompacted = new int[fileCompactedBits.GetLength()];
+        var currentNode = fileCompactedBits.GetFirstNode();
+        var i = 0;
+        while (currentNode != null)
+        {
+            fileCompacted[i] = currentNode.GetData();
+            currentNode = currentNode.GetNextNode();
+            i++;
+        }
+
+        //Converte a arvore para string
+        var treeString = "";
+        var tempNode = this.symbolsTable.GetFirstNode();
+        while (tempNode != null)
+        {
+            var code = tempNode.GetData().GetCode();
+            treeString += ((char)tempNode.GetData().GetCharCode()) + ":";
+            for (var j = 0; j < code.length; j++)
+                treeString += code[j];
+            treeString += ";";
+            tempNode = tempNode.GetNextNode();
+        }
+
+        //Salva os dados comprimidos
+        try (FileOutputStream stream = new FileOutputStream(outputPath))
+        {
+            var bytes = EncodeToByteArray(fileCompacted);
+            var treeBytes = treeString.getBytes();
+            stream.write(treeBytes);
+            stream.write(bytes);
+        }
+        catch (IOException e)
+        {
+            System.out.println("ERRO: Não foi possível salvar o arquivo.");
+        }
+    }
+
+    public void Decompress()
+    {
+    }
+
+    //Converte array de bits para arrayde bytes
+    private byte[] EncodeToByteArray(int[] bits)
+    {
+        byte[] results = new byte[(bits.length + 7) / 8];
+        int byteValue = 0;
+        int index;
+        for (index = 0; index < bits.length; index++)
+        {
+            byteValue = (byteValue << 1) | bits[index];
+
+            if (index % 8 == 7)
+                results[index / 8] = (byte) byteValue;
+        }
+
+        if (index % 8 != 0)
+            results[index / 8] = (byte)(byteValue << (8 - (index % 8)));
+
+        return results;
     }
 
     //Gera a tabela de simbolos
@@ -138,7 +218,7 @@ public class Huffman
                 }
 
                 //Adiciona o simbolo na lista
-                var symbol = new Symbol(node.GetData().GetCharCode(), null);
+                var symbol = new Symbol(node.GetData().GetCharCode(), bitArray);
                 this.symbolsTable.Add(symbol);
             }
 
