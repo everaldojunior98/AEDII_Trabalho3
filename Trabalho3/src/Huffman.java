@@ -1,10 +1,13 @@
 import com.everaldojunior.utils.list.CountByChar;
 import com.everaldojunior.utils.list.LinkedList;
 import com.everaldojunior.utils.list.Symbol;
-import com.everaldojunior.utils.tree.BinaryTree;
 import com.everaldojunior.utils.tree.TreeNode;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.BitSet;
 
 public class Huffman
 {
@@ -34,7 +37,7 @@ public class Huffman
 
         //Quantidade de ocorrência por char
         var countByChar = new LinkedList<TreeNode<CountByChar>>();
-        var fileContent = "";
+        StringBuilder fileContent = new StringBuilder();
 
         //Carrega o arquivo a ser comprimido
         var file = new File(inputPath);
@@ -47,7 +50,7 @@ public class Huffman
                 //Checa se já existe o char na lista
                 var found = false;
                 var currentNode = countByChar.GetFirstNode();
-                fileContent += (char)content;
+                fileContent.append((char) content);
 
                 //Percorre todos os elementos da lista
                 while (currentNode != null)
@@ -79,6 +82,10 @@ public class Huffman
             return;
         }
 
+        //Adiciona EOF na lista
+        var data = new TreeNode<>(new CountByChar(Character.UNASSIGNED));
+        countByChar.Add(data);
+
         //Ordena a lista
         countByChar.Sort();
 
@@ -106,14 +113,11 @@ public class Huffman
             countByChar.Sort();
         }
 
-        //Cria a arvore
-        var binaryTree = new BinaryTree<>(countByChar.GetFirstNode().GetData());
-
         //Percorre a arvore e monta a tabela de simbolos
-        GenerateSymbolTable(binaryTree.root);
+        GenerateSymbolTable(countByChar.GetFirstNode().GetData());
 
         //Recodificando usando a tabela de simbolos
-        var fileContentCharArray = fileContent.toCharArray();
+        var fileContentCharArray = fileContent.toString().toCharArray();
         var fileCompactedBits = new LinkedList<Integer>();
 
         //Percorre cada char do arquivo e adiciona na lista de simbolos
@@ -134,6 +138,21 @@ public class Huffman
             }
         }
 
+        //Adiciona o EOF no final do arquivo
+        var tempNode = this.symbolsTable.GetFirstNode();
+        while (tempNode != null)
+        {
+            //Encontra a letra e seu codigo na lista tabela de simbolos
+            if(tempNode.GetData().GetCharCode() == Character.UNASSIGNED)
+            {
+                var code = tempNode.GetData().GetCode();
+                for (var j = 0; j < code.length; j++)
+                    fileCompactedBits.Add(code[j]);
+                break;
+            }
+            tempNode = tempNode.GetNextNode();
+        }
+
         //Converte os bits de linked list pra array
         var fileCompacted = new int[fileCompactedBits.GetLength()];
         var currentNode = fileCompactedBits.GetFirstNode();
@@ -145,55 +164,154 @@ public class Huffman
             i++;
         }
 
-        //Converte a arvore para string
-        var treeString = "";
-        var tempNode = this.symbolsTable.GetFirstNode();
-        while (tempNode != null)
+        var node = this.symbolsTable.GetFirstNode();
+        var bitCount = 0;
+        while (node != null)
         {
-            var code = tempNode.GetData().GetCode();
-            treeString += ((char)tempNode.GetData().GetCharCode()) + ":";
-            for (var j = 0; j < code.length; j++)
-                treeString += code[j];
-            treeString += ";";
-            tempNode = tempNode.GetNextNode();
+            bitCount += node.GetData().GetCode().length;
+            node = node.GetNextNode();
         }
 
         //Salva os dados comprimidos
-        try (FileOutputStream stream = new FileOutputStream(outputPath))
+        try (var stream = new FileOutputStream(outputPath))
         {
-            var bytes = EncodeToByteArray(fileCompacted);
-            var treeBytes = treeString.getBytes();
-            stream.write(treeBytes);
-            stream.write(bytes);
+            //Montando o header
+            //Quantidade de caracteres da tabela de simbolos
+            var symbolsBits = new int[bitCount];
+            var charCount = (byte)this.symbolsTable.GetLength();
+            stream.write(charCount);
+
+            //Escreve cada caracter e o tamanho do codigo
+            node = this.symbolsTable.GetFirstNode();
+            var currentBitPosition = 0;
+            while (node != null)
+            {
+                var symbol = (byte)node.GetData().GetCharCode();
+                stream.write(symbol);
+                var code = node.GetData().GetCode();
+                var codeSize = (byte)code.length;
+                stream.write(codeSize);
+
+                for (i = 0; i < code.length; i++)
+                {
+                    symbolsBits[currentBitPosition] = code[i];
+                    currentBitPosition++;
+                }
+
+                node = node.GetNextNode();
+            }
+
+            //Salva os códigos de cada caracter
+            var codeBytes = EncodeToByteArray(symbolsBits);
+            stream.write(codeBytes);
+
+            //Converte o arquivo compactado para byte[] e salva
+            var fileCompactedBytes = EncodeToByteArray(fileCompacted);
+            stream.write(fileCompactedBytes);
         }
         catch (IOException e)
         {
-            System.out.println("ERRO: Não foi possível salvar o arquivo.");
+            System.out.println("ERRO: Não foi possível comprimir o arquivo.");
         }
     }
 
     public void Decompress()
     {
+        byte[] fileBytes;
+        //Le o arquivo para descomprimir
+        try
+        {
+            fileBytes = Files.readAllBytes(Paths.get(inputPath));
+        }
+        catch (IOException e)
+        {
+            System.out.println("ERRO: Não foi possível ler o arquivo no caminho: " + inputPath);
+            return;
+        }
+
+        //Pega o tamanho do header
+        var headerSize = (int)fileBytes[0];
+
+        //Transforma os bytes do arquivo em bits
+        var bits = BitSet.valueOf(fileBytes);
+
+        //Posição para começar a ler os bits
+        var currentBitPosition = ((headerSize * 2) + 1) * 8;
+
+        //Lista com os simbolos
+        var symbols = new LinkedList<Symbol>();
+
+        //Lê o header e monta a tabela de simbolos
+        for (var i = 1; i <= headerSize * 2; i+= 2)
+        {
+            var symbolCode = (int)fileBytes[i];
+            var codeSize = (int)fileBytes[i + 1];
+            var code = new int[codeSize];
+
+            for (var j = 0; j < codeSize; j++)
+            {
+                code[j] = bits.get(currentBitPosition) ? 1 : 0;
+                currentBitPosition++;
+            }
+
+            var symbol = new Symbol(symbolCode, code);
+            symbols.Add(symbol);
+        }
+
+        //Calcula a posição inicial dos dados
+        var bodyByteIndex = currentBitPosition % 8 > 0 ? (currentBitPosition / 8) + 1 : currentBitPosition / 8;
+        var bodyBits = BitSet.valueOf(Arrays.copyOfRange(fileBytes, bodyByteIndex, fileBytes.length));
+
+        //Faz o parser da string
+        var decodedString = new StringBuilder();
+        var buffer = new StringBuilder();
+        for (var i = 0; i < bodyBits.length(); i++)
+        {
+            buffer.append(bodyBits.get(i) ? "1" : "0");
+
+            var tempNode = symbols.GetFirstNode();
+            while (tempNode != null)
+            {
+                var internalBuffer = new StringBuilder();
+                for(var j = 0; j < tempNode.GetData().GetCode().length; j++)
+                    internalBuffer.append(tempNode.GetData().GetCode()[j]);
+
+                if(internalBuffer.toString().equals(buffer.toString()))
+                {
+                    buffer.setLength(0);
+                    decodedString.append((char) tempNode.GetData().GetCharCode());
+                    break;
+                }
+
+                tempNode = tempNode.GetNextNode();
+            }
+        }
+
+        //Salvar o arquivo descomprimido
+        try
+        {
+            var outputFile = new File(outputPath);
+            outputFile.createNewFile();
+
+            var stream = new FileOutputStream(outputPath);
+            stream.write(decodedString.toString().getBytes());
+            stream.close();
+        }
+        catch (IOException e)
+        {
+            System.out.println("ERRO: Não foi possível descomprimir o arquivo.");
+        }
     }
 
     //Converte array de bits para arrayde bytes
     private byte[] EncodeToByteArray(int[] bits)
     {
-        byte[] results = new byte[(bits.length + 7) / 8];
-        int byteValue = 0;
-        int index;
-        for (index = 0; index < bits.length; index++)
-        {
-            byteValue = (byteValue << 1) | bits[index];
+        var bitSet = new BitSet(bits.length);
+        for (var i = 0; i < bits.length; i++)
+            if (bits[i] == 1)
+                bitSet.set(i);
 
-            if (index % 8 == 7)
-                results[index / 8] = (byte) byteValue;
-        }
-
-        if (index % 8 != 0)
-            results[index / 8] = (byte)(byteValue << (8 - (index % 8)));
-
-        return results;
+        return bitSet.toByteArray();
     }
 
     //Gera a tabela de simbolos
