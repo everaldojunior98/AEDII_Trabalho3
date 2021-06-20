@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.function.Function;
 
 public class Huffman
 {
@@ -16,12 +17,21 @@ public class Huffman
     private String outputPath;
     private String currentSymbol;
 
+    private Function<Integer, Void> onProgress;
+    private Function<String, Void> onError;
+    private Function<String, Void> onSuccess;
+
     private LinkedList<Symbol> symbolsTable;
 
-    public Huffman(String input, String output)
+    private long inputSize;
+    private long outputSize;
+
+    public Huffman(String input, Function<Integer, Void> onProgress, Function<String, Void> onError, Function<String, Void> onSuccess)
     {
         this.inputPath = input;
-        this.outputPath = output;
+        this.onProgress = onProgress;
+        this.onError = onError;
+        this.onSuccess = onSuccess;
     }
 
     public void Compress()
@@ -34,6 +44,9 @@ public class Huffman
 
         this.currentSymbol = "";
         this.symbolsTable = new LinkedList<>();
+
+        this.inputSize = 0;
+        this.outputSize = 0;
 
         //Quantidade de ocorrência por char
         var countByChar = new LinkedList<TreeNode<CountByChar>>();
@@ -51,6 +64,8 @@ public class Huffman
                 var found = false;
                 var currentNode = countByChar.GetFirstNode();
                 fileContent.append((char) content);
+
+                this.inputSize += 1;
 
                 //Percorre todos os elementos da lista
                 while (currentNode != null)
@@ -78,9 +93,17 @@ public class Huffman
         }
         catch (IOException e)
         {
-            System.out.println("ERRO: Não foi possível ler o arquivo no caminho: " + inputPath);
+            this.onError.apply("ERRO: Não foi possível ler o arquivo no caminho: " + inputPath);
+            //Atualiza o progresso
+            this.onProgress.apply(0);
             return;
         }
+
+        //Monta o outputPath
+        outputPath = file.getParent() + "\\" + file.getName().replace(".txt", "_COMPRESSED.txt");
+
+        //Atualiza o progresso
+        this.onProgress.apply(10);
 
         //Adiciona EOF na lista
         var data = new TreeNode<>(new CountByChar(Character.UNASSIGNED));
@@ -88,6 +111,9 @@ public class Huffman
 
         //Ordena a lista
         countByChar.Sort();
+
+        //Atualiza o progresso
+        this.onProgress.apply(20);
 
         //Montando a estrutura da arvore binaria
         //Percorre todos os elementos da lista
@@ -113,6 +139,9 @@ public class Huffman
             countByChar.Sort();
         }
 
+        //Atualiza o progresso
+        this.onProgress.apply(35);
+
         //Percorre a arvore e monta a tabela de simbolos
         GenerateSymbolTable(countByChar.GetFirstNode().GetData());
 
@@ -137,6 +166,9 @@ public class Huffman
                 currentNode = currentNode.GetNextNode();
             }
         }
+
+        //Atualiza o progresso
+        this.onProgress.apply(50);
 
         //Adiciona o EOF no final do arquivo
         var tempNode = this.symbolsTable.GetFirstNode();
@@ -164,6 +196,9 @@ public class Huffman
             i++;
         }
 
+        //Atualiza o progresso
+        this.onProgress.apply(75);
+
         var node = this.symbolsTable.GetFirstNode();
         var bitCount = 0;
         while (node != null)
@@ -171,6 +206,9 @@ public class Huffman
             bitCount += node.GetData().GetCode().length;
             node = node.GetNextNode();
         }
+
+        //Atualiza o progresso
+        this.onProgress.apply(90);
 
         //Salva os dados comprimidos
         try (var stream = new FileOutputStream(outputPath))
@@ -192,6 +230,8 @@ public class Huffman
                 var codeSize = (byte)code.length;
                 stream.write(codeSize);
 
+                this.outputSize += 2;
+
                 for (i = 0; i < code.length; i++)
                 {
                     symbolsBits[currentBitPosition] = code[i];
@@ -208,11 +248,21 @@ public class Huffman
             //Converte o arquivo compactado para byte[] e salva
             var fileCompactedBytes = EncodeToByteArray(fileCompacted);
             stream.write(fileCompactedBytes);
+
+            this.outputSize += codeBytes.length + fileCompactedBytes.length;
         }
         catch (IOException e)
         {
-            System.out.println("ERRO: Não foi possível comprimir o arquivo.");
+            this.onError.apply("ERRO: Não foi possível comprimir o arquivo");
+            //Atualiza o progresso
+            this.onProgress.apply(0);
+            return;
         }
+
+        //Atualiza o progresso
+        this.onProgress.apply(100);
+        var percentage = 100 - (((double)this.outputSize / this.inputSize) * 100);
+        this.onSuccess.apply("Arquivo comprimido com sucesso\nTamanho anterior: " + this.inputSize + " bytes\nTamanho comprimido: " + this.outputSize + " bytes\nUma compressão de " + String.format("%.2f" , percentage) + "%");
     }
 
     public void Decompress()
@@ -225,9 +275,15 @@ public class Huffman
         }
         catch (IOException e)
         {
-            System.out.println("ERRO: Não foi possível ler o arquivo no caminho: " + inputPath);
+            this.onError.apply("ERRO: Não foi possível ler o arquivo no caminho: " + inputPath);
+            //Atualiza o progresso
+            this.onProgress.apply(0);
             return;
         }
+
+        //Monta o outputPath
+        var file = new File(inputPath);
+        outputPath = file.getParent() + "\\" + file.getName().replace(".txt", "_DECOMPRESSED.txt");
 
         //Pega o tamanho do header
         var headerSize = (int)fileBytes[0];
@@ -240,6 +296,9 @@ public class Huffman
 
         //Lista com os simbolos
         var symbols = new LinkedList<Symbol>();
+
+        //Atualiza o progresso
+        this.onProgress.apply(30);
 
         //Lê o header e monta a tabela de simbolos
         for (var i = 1; i <= headerSize * 2; i+= 2)
@@ -262,6 +321,19 @@ public class Huffman
         var bodyByteIndex = currentBitPosition % 8 > 0 ? (currentBitPosition / 8) + 1 : currentBitPosition / 8;
         var bodyBits = BitSet.valueOf(Arrays.copyOfRange(fileBytes, bodyByteIndex, fileBytes.length));
 
+        //Atualiza o progresso
+        this.onProgress.apply(40);
+
+        //Calcula o tamanho máximo do buffer para segurança
+        var securityBufferSize = 0;
+        var tempNode = symbols.GetFirstNode();
+        while (tempNode != null)
+        {
+            if(tempNode.GetData().GetCode().length > securityBufferSize)
+                securityBufferSize = tempNode.GetData().GetCode().length;
+            tempNode = tempNode.GetNextNode();
+        }
+
         //Faz o parser da string
         var decodedString = new StringBuilder();
         var buffer = new StringBuilder();
@@ -269,9 +341,20 @@ public class Huffman
         {
             buffer.append(bodyBits.get(i) ? "1" : "0");
 
-            var tempNode = symbols.GetFirstNode();
+            if(buffer.length() > securityBufferSize)
+            {
+                this.onError.apply("ERRO: Não foi possível descomprimir o arquivo");
+                //Atualiza o progresso
+                this.onProgress.apply(0);
+                return;
+            }
+
+            tempNode = symbols.GetFirstNode();
             while (tempNode != null)
             {
+                if(tempNode.GetData().GetCode().length > securityBufferSize)
+                    securityBufferSize = tempNode.GetData().GetCode().length;
+
                 var internalBuffer = new StringBuilder();
                 for(var j = 0; j < tempNode.GetData().GetCode().length; j++)
                     internalBuffer.append(tempNode.GetData().GetCode()[j]);
@@ -287,6 +370,9 @@ public class Huffman
             }
         }
 
+        //Atualiza o progresso
+        this.onProgress.apply(90);
+
         //Salvar o arquivo descomprimido
         try
         {
@@ -299,8 +385,15 @@ public class Huffman
         }
         catch (IOException e)
         {
-            System.out.println("ERRO: Não foi possível descomprimir o arquivo.");
+            this.onError.apply("ERRO: Não foi possível descomprimir o arquivo");
+            //Atualiza o progresso
+            this.onProgress.apply(0);
+            return;
         }
+
+        //Atualiza o progresso
+        this.onProgress.apply(100);
+        this.onSuccess.apply("Arquivo descomprimido com sucesso");
     }
 
     //Converte array de bits para arrayde bytes
