@@ -225,7 +225,8 @@ public class Huffman
             while (node != null)
             {
                 var symbol = (byte)node.GetData().GetCharCode();
-                stream.write(symbol);
+                stream.write(symbol & 0xFF);
+
                 var code = node.GetData().GetCode();
                 var codeSize = (byte)code.length;
                 stream.write(codeSize);
@@ -303,7 +304,7 @@ public class Huffman
         //Lê o header e monta a tabela de simbolos
         for (var i = 1; i <= headerSize * 2; i+= 2)
         {
-            var symbolCode = (int)fileBytes[i];
+            var symbolCode = (char)(fileBytes[i] & 0xFF);
             var codeSize = (int)fileBytes[i + 1];
             var code = new int[codeSize];
 
@@ -362,7 +363,8 @@ public class Huffman
                 if(internalBuffer.toString().equals(buffer.toString()))
                 {
                     buffer.setLength(0);
-                    decodedString.append((char) tempNode.GetData().GetCharCode());
+                    if(((char) tempNode.GetData().GetCharCode()) != Character.UNASSIGNED)
+                        decodedString.append((char) tempNode.GetData().GetCharCode());
                     break;
                 }
 

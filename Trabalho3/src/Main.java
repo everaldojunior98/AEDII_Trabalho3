@@ -1,6 +1,5 @@
 import javax.swing.*;
-import javax.swing.filechooser.FileFilter;
-import java.io.File;
+import javax.swing.filechooser.FileNameExtensionFilter;
 
 public class Main
 {
@@ -39,31 +38,10 @@ public class Main
             filePicker.setFileSelectionMode(JFileChooser.FILES_ONLY);
 
             //Cria um filtro pra arquivo txt
-            filePicker.addChoosableFileFilter(new FileFilter()
-            {
-                @Override
-                public boolean accept(File file)
-                {
-                    var extension = "";
-                    var filename = file.getName();
-                    int i = filename.lastIndexOf('.');
-
-                    if (i > 0 &&  i < filename.length() - 1)
-                        extension = filename.substring(i + 1).toLowerCase();
-
-                    return extension.equals("txt");
-                }
-
-                @Override
-                public String getDescription()
-                {
-                    return null;
-                }
-            });
+            var filter = new FileNameExtensionFilter("TEXT FILES", "txt", "text");
+            filePicker.setFileFilter(filter);
             filePicker.addActionListener(fileActionEvent -> path = filePicker.getSelectedFile() == null ? null : filePicker.getSelectedFile().getPath());
 
-            //Habilita o filtro
-            filePicker.setAcceptAllFileFilterUsed(false);
             //Abre o file picker
             filePicker.showOpenDialog(frame);
         });
