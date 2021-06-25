@@ -1,5 +1,6 @@
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import java.io.File;
 
 public class Main
 {
@@ -33,7 +34,7 @@ public class Main
         fileButton.addActionListener(fileActionListener ->
         {
             //Cria o file picker
-            var filePicker = new JFileChooser();
+            var filePicker = new JFileChooser("src/files");
             //Colocar para apenas arquivos
             filePicker.setFileSelectionMode(JFileChooser.FILES_ONLY);
 
